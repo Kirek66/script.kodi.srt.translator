@@ -1,6 +1,7 @@
-# Kirek SRT Translator GPT (v1.0.1)
+# Kirek SRT Translator GPT (v1.0.3)
 
-Profesjonalne narzędzie do tłumaczenia napisów SRT wewnątrz ekosystemu Kodi, wykorzystujące zaawansowane modele językowe OpenAI GPT. Dodatek skupia się na naturalności języka polskiego, poprawnym doborze płci gramatycznej oraz odpowiednim tłumaczeniu idiomów filmowych.
+W miarę profesjonalne narzędzie do tłumaczenia napisów SRT z języka angielskiego na polski wewnątrz ekosystemu Kodi, wykorzystujące zaawansowane modele językowe OpenAI GPT-4, GPT-5 i GPT-5.4. odatek skupia się na naturalności języka polskiego, poprawnym doborze płci gramatycznej oraz odpowiednim tłumaczeniu idiomów filmowych.
+W wersji 1.0.3 dodane zostały jako możliwość wyboru najnowsze modele OpenAI: GPT-5.4, GPT-5.4-mini, GPT-5.4-nano.
 
 ## 🚀 Kluczowe Funkcje
 - **Profil Profesjonalny:** Unikalny zestaw instrukcji dla AI, który eliminuje kalki językowe (np. nadużywanie zaimków "Ty", "Mój") i dba o filmowy styl dialogów.
@@ -23,7 +24,7 @@ Do działania dodatku wymagany jest własny klucz API od OpenAI:
 ## 📖 Sposób użycia
 1. Uruchom dodatek.
 2. Wybierz profil (zalecany: **Profesjonalny (Kontekst i Styl)**).
-3. Wybierz model AI (np. **GPT-4o** dla najlepszej jakości lub **GPT-5 Mini** dla szybkości).
+3. Wybierz model AI.
 4. Wskaż folder z plikami `.srt`.
 5. Dodatek utworzy nowe pliki z końcówką `.PL.srt` w tym samym folderze.
 
@@ -32,4 +33,4 @@ Do działania dodatku wymagany jest własny klucz API od OpenAI:
 - **Prywatność:** Twój klucz API jest przechowywany wyłącznie lokalnie w folderze `addon_data` Twojego urządzenia Kodi.
 
 ---
-*Autor: Kirek* *Kompatybilność: Kodi 21 (Omega) oraz starsze wersje z Python 3.*
+*Autor: Ireneusz Kutrzuba. Kompatybilność: Kodi 21 (Omega) oraz starsze wersje z Python 3.*

@@ -19,6 +19,18 @@ MODELS = {
     "gpt-5-mini": {
         "name": "GPT-5 Mini (Szybki)",
         "description": "Tani i błyskawiczny, idealny do prostych dialogów."
+    },
+    "gpt-5.4": {
+        "name": "GPT-5.4",
+        "description": "Najnowszy model GPT-5.4."
+    },
+    "gpt-5.4-mini": {
+        "name": "GPT-5.4 Mini",
+        "description": "Szybka i ekonomiczna wersja GPT-5.4."
+    },
+    "gpt-5.4-nano": {
+        "name": "GPT-5.4 Nano",
+        "description": "Najlżejsza wersja GPT-5.4, maksymalna szybkość."
     }
 }
 

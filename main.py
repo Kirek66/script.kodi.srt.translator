@@ -9,7 +9,7 @@ from model_manager import choose_model
 from prompt_profiles import DEFAULT_PROFILE
 
 # Wersja skryptu
-__version__ = "1.0.1"
+__version__ = "1.0.3"
 
 ADDON_PATH = xbmcvfs.translatePath(
     "special://home/addons/script.kodi.srt.translator/"

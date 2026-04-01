@@ -1,19 +1,23 @@
 import os
 import json
+import xbmc
 import xbmcvfs
 
-from srt_utils import read_srt, write_srt, split_srt_into_chunks
+from srt_utils import (
+    read_srt, write_srt, split_srt_into_chunks,
+    has_polish_chars, clean_sdh, remove_song_lines,
+    remove_speaker_prefix, clean_markdown, fix_srt_format
+)
 from openai_client import translate_text
 from prompt_profiles import PROFILES, DEFAULT_PROFILE
 from profile_manager import load_profile_key
 from model_manager import load_model_key
 
 
-# =========================
+# ─────────────────────────────────────────
 # ŚCIEŻKI DANYCH
-# =========================
+# ─────────────────────────────────────────
 
-# Ścieżka do danych dodatku wewnątrz profilu użytkownika Kodi
 ADDON_DATA_PATH = xbmcvfs.translatePath(
     "special://profile/addon_data/script.kodi.srt.translator/"
 )
@@ -21,8 +25,11 @@ ADDON_DATA_PATH = xbmcvfs.translatePath(
 STATE_FILE = os.path.join(ADDON_DATA_PATH, "resume_state.json")
 
 
+def log(msg):
+    xbmc.log(f"[SRT Translator] {msg}", xbmc.LOGINFO)
+
+
 def ensure_data_dir():
-    """Upewnia się, że folder na dane dodatku istnieje."""
     if not os.path.exists(ADDON_DATA_PATH):
         try:
             os.makedirs(ADDON_DATA_PATH)
@@ -30,12 +37,12 @@ def ensure_data_dir():
             pass
 
 
-# =========================
+# ─────────────────────────────────────────
 # STAN (RESUME)
-# =========================
+# ─────────────────────────────────────────
 
 def load_state():
-    """Wczytuje stan tłumaczenia, aby móc wznowić pracę po błędzie."""
+    """Wczytuje stan tłumaczenia, by móc wznowić po błędzie."""
     ensure_data_dir()
     if not os.path.exists(STATE_FILE):
         return {}
@@ -47,7 +54,6 @@ def load_state():
 
 
 def save_state(state):
-    """Zapisuje aktualny postęp do pliku json."""
     ensure_data_dir()
     try:
         with open(STATE_FILE, "w", encoding="utf-8") as f:
@@ -56,24 +62,23 @@ def save_state(state):
         pass
 
 
-# =========================
+# ─────────────────────────────────────────
 # TŁUMACZENIE
-# =========================
+# ─────────────────────────────────────────
 
 def translate_files(api_key, folder, srt_files, progress_callback=None):
-    """Główna funkcja zarządzająca procesem tłumaczenia plików."""
+    """Główna funkcja tłumacząca listę plików SRT."""
     state = load_state()
 
-    # Pobieranie profilu z zabezpieczeniem (jeśli klucz nie istnieje, użyj domyślnego)
     profile_key = load_profile_key() or DEFAULT_PROFILE
     profile = PROFILES.get(profile_key) or PROFILES.get(DEFAULT_PROFILE)
     system_prompt = profile["prompt"]
 
     model_key = load_model_key()
+    log(f"Model: {model_key} | Profil: {profile_key}")
 
     for file_index, filename in enumerate(srt_files, start=1):
         input_path = os.path.join(folder, filename)
-        # Tworzenie nazwy pliku wyjściowego: film.srt -> film.PL.srt
         output_path = os.path.join(
             folder,
             filename.rsplit('.', 1)[0] + ".PL.srt"
@@ -81,44 +86,72 @@ def translate_files(api_key, folder, srt_files, progress_callback=None):
 
         original_text = read_srt(input_path)
         if not original_text:
+            log(f"Pominięto (pusty plik): {filename}")
             continue
 
+        # Sprawdzenie czy plik nie jest już po polsku
+        if has_polish_chars(original_text):
+            log(f"Pominięto (wykryto polski): {filename}")
+            continue
+
+        # ── Czyszczenie przed tłumaczeniem ──────────────────────
+        original_text = clean_sdh(original_text)
+        original_text = remove_song_lines(original_text)
+        original_text = remove_speaker_prefix(original_text)
+        # ────────────────────────────────────────────────────────
+
         chunks = split_srt_into_chunks(original_text)
-        
+        if not chunks:
+            log(f"Pominięto (brak chunków po czyszczeniu): {filename}")
+            continue
+
         file_state = state.get(filename, {})
         last_chunk = file_state.get("last_chunk", 0)
         translated_chunks = file_state.get("translated_chunks", [])
-
         total_chunks = len(chunks)
 
-        # Jeśli plik został już w całości przetłumaczony wcześniej (z sesji resume)
-        if last_chunk >= total_chunks and total_chunks > 0:
-            final_text = "\n\n".join(translated_chunks)
+        log(f"Tłumaczę: {filename} ({total_chunks} chunków, zaczynam od {last_chunk})")
+
+        # Plik już w całości przetłumaczony (resume)
+        if last_chunk >= total_chunks > 0:
+            final_text = fix_srt_format("\n\n".join(translated_chunks))
             write_srt(output_path, final_text)
+            log(f"Gotowe (resume): {filename}")
             continue
 
         for chunk_index in range(last_chunk, total_chunks):
-            # Wywołanie API tłumacza
-            translated = translate_text(
-                api_key,
-                chunks[chunk_index],
-                system_prompt,
-                model_key
-            )
+            translated = None
 
-            if translated:
-                translated_chunks.append(translated)
-                
-                # Aktualizacja stanu po każdym poprawnym fragmencie
-                state[filename] = {
-                    "last_chunk": chunk_index + 1,
-                    "translated_chunks": translated_chunks
-                }
-                save_state(state)
-            else:
-                # Jeśli API zwróci pusty wynik (błąd), przerywamy pracę nad tym plikiem
-                # Błąd zostanie obsłużony w main.py przez try...except
-                raise Exception(f"Błąd API podczas tłumaczenia fragmentu {chunk_index + 1} w pliku {filename}")
+            for attempt in range(3):
+                try:
+                    translated = translate_text(
+                        api_key,
+                        chunks[chunk_index],
+                        system_prompt,
+                        model_key
+                    )
+                    if translated:
+                        break
+                except Exception as e:
+                    log(f"BŁĄD API (próba {attempt + 1}/{3}) chunk {chunk_index + 1}: {e}")
+                    import time
+                    time.sleep(2)
+
+            if not translated:
+                raise Exception(
+                    f"Błąd API: nie udało się przetłumaczyć fragmentu "
+                    f"{chunk_index + 1}/{total_chunks} w pliku {filename}"
+                )
+
+            # Czyszczenie markdown z odpowiedzi modelu
+            translated_chunks.append(clean_markdown(translated))
+
+            # Zapis stanu po każdym chunku
+            state[filename] = {
+                "last_chunk": chunk_index + 1,
+                "translated_chunks": translated_chunks
+            }
+            save_state(state)
 
             if progress_callback:
                 progress_callback(
@@ -126,11 +159,12 @@ def translate_files(api_key, folder, srt_files, progress_callback=None):
                     f"{filename} ({chunk_index + 1}/{total_chunks})"
                 )
 
-        # Łączenie przetłumaczonych fragmentów i zapis finalny
-        final_text = "\n\n".join(translated_chunks)
+        # Finalny zapis z formatowaniem
+        final_text = fix_srt_format("\n\n".join(translated_chunks))
         write_srt(output_path, final_text)
+        log(f"Zapisano: {output_path}")
 
-        # Usunięcie stanu po udanym zakończeniu tłumaczenia pliku
+        # Usuń stan po sukcesie
         if filename in state:
             del state[filename]
             save_state(state)

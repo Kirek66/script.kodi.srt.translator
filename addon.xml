@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<addon id="script.kodi.srt.translator" name="Kirek SRT Translator GPT" version="1.0.1" provider-name="Kirek">
+<addon id="script.kodi.srt.translator" name="Kirek SRT Translator GPT" version="1.0.3" provider-name="Ireneusz Kutrzuba">
     <requires>
         <import addon="xbmc.python" version="3.0.1"/>
     </requires>
@@ -7,8 +7,8 @@
         <provides>executable</provides>
     </extension>
     <extension point="xbmc.addon.metadata">
-        <summary lang="pl">Tłumacz napisów SRT oparty o GPT</summary>
-        <description lang="pl">Automatyczne tłumaczenie napisów SRT.</description>
+        <summary lang="pl">Tłumacz napisów SRT z pomocą OpenAI GPT</summary>
+        <description lang="pl">Automatyczne tłumaczenie napisów SRT z języka angielskiego na polski z możliwością użycia różnych wersji modeli GPT-4 i GPT-5.</description>
         <platform>all</platform>
         <license>MIT</license>
         <assets>
